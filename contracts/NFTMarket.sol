@@ -24,7 +24,8 @@ contract NFTMarket is ReentrancyGuard {
     address payable seller;
     address payable buyer; // The buyer
     uint256 price;
-    bool sold;
+    string orderType;
+    bool processed;
   }
   
   mapping(uint256 => Order) private orders;
@@ -36,7 +37,8 @@ contract NFTMarket is ReentrancyGuard {
     address payable seller,
     address payable buyer,
     uint256 price,
-    bool sold
+    string orderType,
+    bool processed
   );
 
   function getListingPrice() public view returns (uint256) {
@@ -46,10 +48,11 @@ contract NFTMarket is ReentrancyGuard {
   function createOrder(
     address nftContract,
     uint256 tokenId,
-    uint256 price
+    uint256 price,
+    string memory orderType
   ) public payable nonReentrant {
     require(price > 0, "Price must be at least 1 wei");
-    require(msg.value == listingPrice, "Listing price must be sent over.");
+    require(msg.value == listingPrice, "Transaction fee must be sent over.");
 
     _itemIds.increment();
     uint256 itemId = _itemIds.current();
@@ -61,6 +64,7 @@ contract NFTMarket is ReentrancyGuard {
       payable(msg.sender),
       payable(address(0)), // The buyer is unknown atm
       price,
+      orderType,
       false
     );
 
@@ -73,6 +77,7 @@ contract NFTMarket is ReentrancyGuard {
       payable(msg.sender),
       payable(address(0)),
       price,
+      orderType,
       false
     );
   }
@@ -90,7 +95,7 @@ contract NFTMarket is ReentrancyGuard {
     orders[itemId].seller.transfer(msg.value);
     IERC721(nftContract).transferFrom(address(this), msg.sender, tokenId);
     orders[itemId].buyer = payable(msg.sender);
-    orders[itemId].sold = true;
+    orders[itemId].processed = true;
     _itemsSold.increment();
     payable(owner).transfer(listingPrice); // Pay the owner of this contract the listing fee
   }
