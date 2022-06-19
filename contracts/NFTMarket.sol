@@ -17,24 +17,24 @@ contract NFTMarket is ReentrancyGuard {
     owner = payable(msg.sender);
   }
 
-  struct MarketItem {
+  struct Order {
     uint itemId;
     address nftContract;
     uint256 tokenId;
     address payable seller;
-    address payable owner; // The buyer
+    address payable buyer; // The buyer
     uint256 price;
     bool sold;
   }
   
-  mapping(uint256 => MarketItem) private idToMarketItem;
+  mapping(uint256 => Order) private orders;
 
-  event MarketItemCreated (
+  event OrderCreated (
     uint indexed itemId,
     address indexed nftContract,
     uint256 indexed tokenId,
     address payable seller,
-    address payable owner,
+    address payable buyer,
     uint256 price,
     bool sold
   );
@@ -43,7 +43,7 @@ contract NFTMarket is ReentrancyGuard {
     return listingPrice;
   }
 
-  function createMarketItem(
+  function createOrder(
     address nftContract,
     uint256 tokenId,
     uint256 price
@@ -54,7 +54,7 @@ contract NFTMarket is ReentrancyGuard {
     _itemIds.increment();
     uint256 itemId = _itemIds.current();
 
-    idToMarketItem[itemId] = MarketItem(
+    orders[itemId] = Order(
       itemId,
       nftContract,
       tokenId,
@@ -66,7 +66,7 @@ contract NFTMarket is ReentrancyGuard {
 
     IERC721(nftContract).transferFrom(msg.sender, address(this), tokenId);
 
-    emit MarketItemCreated(
+    emit OrderCreated(
       itemId,
       nftContract,
       tokenId,
@@ -77,34 +77,34 @@ contract NFTMarket is ReentrancyGuard {
     );
   }
 
-  function createMarketSale(
+  function processNftSale(
     address nftContract,
     uint256 itemId
   ) public payable nonReentrant {
-    uint price = idToMarketItem[itemId].price;
-    uint tokenId = idToMarketItem[itemId].tokenId;
+    uint price = orders[itemId].price;
+    uint tokenId = orders[itemId].tokenId;
 
-    require(msg.sender != idToMarketItem[itemId].seller, "You cannot buy your own NFT.");
+    require(msg.sender != orders[itemId].seller, "You cannot buy your own NFT.");
     require(msg.value == price, "Please submit the asking price for this purchase");
     
-    idToMarketItem[itemId].seller.transfer(msg.value);
+    orders[itemId].seller.transfer(msg.value);
     IERC721(nftContract).transferFrom(address(this), msg.sender, tokenId);
-    idToMarketItem[itemId].owner = payable(msg.sender);
-    idToMarketItem[itemId].sold = true;
+    orders[itemId].buyer = payable(msg.sender);
+    orders[itemId].sold = true;
     _itemsSold.increment();
     payable(owner).transfer(listingPrice); // Pay the owner of this contract the listing fee
   }
 
-  function fetchMarketItems() public view returns (MarketItem[] memory) {
+  function fetchOrders() public view returns (Order[] memory) {
     uint itemCount = _itemIds.current();
     uint unsoldItemCount = itemCount - _itemsSold.current();
     uint currentIndex = 0;
 
-    MarketItem[] memory items = new MarketItem[](unsoldItemCount);
+    Order[] memory items = new Order[](unsoldItemCount);
     for (uint i = 1; i < itemCount; i++) {
-      if (idToMarketItem[i].owner == address(0)) {
-        uint currentId = idToMarketItem[i].itemId;
-        MarketItem storage currentItem = idToMarketItem[currentId];
+      if (orders[i].buyer == address(0)) {
+        uint currentId = orders[i].itemId;
+        Order storage currentItem = orders[currentId];
         items[currentIndex] = currentItem;
         currentIndex += 1;
       }
@@ -112,26 +112,26 @@ contract NFTMarket is ReentrancyGuard {
     return items;
   }
 
-  function fetchMyNFTs() public view returns (MarketItem[] memory) {
+  function fetchMyNFTs() public view returns (Order[] memory) {
     uint totalItemsCount = _itemIds.current();
     uint currentIndex = 0;
     uint itemCount = 0;
 
     for (uint i = 1; i < totalItemsCount; i++) { // We want an array with the exact size fitting the nfts owner by sender
-      if (idToMarketItem[i].owner == msg.sender
-      || (idToMarketItem[i].seller == msg.sender && idToMarketItem[i].owner == address(0))
+      if (orders[i].buyer == msg.sender
+      || (orders[i].seller == msg.sender && orders[i].buyer == address(0))
       ) {
          itemCount += 1;
       }
     }
 
-    MarketItem[] memory items = new MarketItem[](itemCount);
+    Order[] memory items = new Order[](itemCount);
     for (uint i = 1; i < totalItemsCount; i++) {
-      if (idToMarketItem[i].owner == msg.sender
-      || (idToMarketItem[i].seller == msg.sender && idToMarketItem[i].owner == address(0))
+      if (orders[i].buyer == msg.sender
+      || (orders[i].seller == msg.sender && orders[i].buyer == address(0))
       ) {
-        uint currentId = idToMarketItem[i].itemId;
-        MarketItem storage currentItem = idToMarketItem[currentId];
+        uint currentId = orders[i].itemId;
+        Order storage currentItem = orders[currentId];
         items[currentIndex] = currentItem;
         currentIndex += 1;
       }
@@ -139,22 +139,22 @@ contract NFTMarket is ReentrancyGuard {
     return items;
   }
 
-  function fetchUserSoldMyNFTs() public view returns (MarketItem[] memory) {
+  function fetchSoldUserNFTs() public view returns (Order[] memory) {
     uint totalItemsCount = _itemIds.current();
     uint currentIndex = 0;
     uint itemCount = 0;
 
     for (uint i = 1; i < totalItemsCount; i++) { // We want an array with the exact size fitting the nfts owner by sender
-      if (idToMarketItem[i].seller == msg.sender) {
+      if (orders[i].seller == msg.sender) {
          itemCount += 1;
       }
     }
 
-    MarketItem[] memory items = new MarketItem[](itemCount);
+    Order[] memory items = new Order[](itemCount);
     for (uint i = 1; i < totalItemsCount; i++) {
-      if (idToMarketItem[i].seller == msg.sender) {
-        uint currentId = idToMarketItem[i].itemId;
-        MarketItem storage currentItem = idToMarketItem[currentId];
+      if (orders[i].seller == msg.sender) {
+        uint currentId = orders[i].itemId;
+        Order storage currentItem = orders[currentId];
         items[currentIndex] = currentItem;
         currentIndex += 1;
       }
