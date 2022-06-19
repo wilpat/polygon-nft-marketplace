@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "git": "func() { git add . && git commit -m \"$1\" && git push origin HEAD; }; func",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
