@@ -44,7 +44,7 @@ contract NFTMarket is ReentrancyGuard {
   function getListingPrice() public view returns (uint256) {
     return listingPrice;
   }
-
+  
   function createOrder(
     address nftContract,
     uint256 tokenId,
@@ -106,7 +106,7 @@ contract NFTMarket is ReentrancyGuard {
     uint currentIndex = 0;
 
     Order[] memory items = new Order[](unsoldItemCount);
-    for (uint i = 1; i < itemCount; i++) {
+    for (uint i = 1; i <= itemCount; i++) {
       if (orders[i].buyer == address(0)) {
         uint currentId = orders[i].itemId;
         Order storage currentItem = orders[currentId];
@@ -122,7 +122,7 @@ contract NFTMarket is ReentrancyGuard {
     uint currentIndex = 0;
     uint itemCount = 0;
 
-    for (uint i = 1; i < totalItemsCount; i++) { // We want an array with the exact size fitting the nfts owner by sender
+    for (uint i = 1; i <= totalItemsCount; i++) { // We want an array with the exact size fitting the nfts owner by sender
       if (orders[i].buyer == msg.sender
       || (orders[i].seller == msg.sender && orders[i].buyer == address(0))
       ) {
